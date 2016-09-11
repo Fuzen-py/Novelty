@@ -11,7 +11,7 @@ setup(
     description='Python 3 Aiohttp Novelupdates Scraper',
     long_description='Based on Raitonoberu, Novelty is a Novelupdates scraper to provide a convenient access',
     classifiers=[
-        'Development Status :: 1 - Beta',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.5',
