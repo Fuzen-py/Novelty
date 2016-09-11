@@ -21,14 +21,13 @@ class Novel:
                 'Aliases: {self.aliases}\n'
                 'Type: {self.type}\n'
                 'Rating: {self.rating}\n'
+                'Year: {self.year}\n'
                 'Authors: {self.authors}\n'
                 'Tags: {self.tags}\n'
                 'Publisher: {self.publisher}\n'
                 'English Publisher: {self.english_publisher}\n'
                 'Description:\n'
-                '{self.description}\n'
-                '\n'
-                '\n'
+                '{self.description}\n\n\n'
                 'Licensed: {self.licensed}\n'
                 'Novel Status: {self.novel_status}\n'
                 'Completely Translated: {self.completely_translated}\n'
@@ -46,7 +45,8 @@ class Novelty:
         self.headers = user_agent or {"User-Agent": "RSS Reader"}
         self.loop = asyncio.get_event_loop()
         # Give the user the option of using their own client session
-        self.session = session or aiohttp.ClientSession(headers=self.headers, loop=self.loop)
+        self.session = session or aiohttp.ClientSession(headers=self.headers,
+                                                        loop=self.loop)
         self.__cache__ = {}
 
     def __del__(self):
@@ -54,15 +54,19 @@ class Novelty:
         if not self.loop.is_closed():
             self.loop.close()
 
-    async def __search(self, term: str, max_results: int = 1, sleep_time: int = 7, interval: int = 4):
+    async def __search(self, term: str, max_results: int=1, sleep_time: int=7, interval: int=4):
         search = []
         page_range = []
-        async with self.session.get(self.BASEURL, params={'s': term, 'post_type': 'seriesplan'}) as r:
+        async with self.session.get(self.BASEURL,
+                                    params={'s': term,
+                                            'post_type': 'seriesplan'}) as r:
             # If the response is 200 OK
             if r.status == 200:
                 soup = BeautifulSoup(await r.text(), 'lxml')
-                search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if x is not None][
-                          0:max_results]
+                search += [x.get('href')
+                           for x in soup.find_all(
+                              'a', class_='w-blog-entry-link')
+                           if x is not None][0: max_results]
                 if not (max_results >= 17):
                     pages = soup.find_all('a', class_='page-numbers')
                     if len(pages) > 0:
@@ -76,7 +80,8 @@ class Novelty:
                                 if p > max_pages:
                                     max_pages = p
                             if max_results != -1:
-                                while (max_pages * 10) - max_results > max_results:
+                                while (
+                                        max_pages * 10) - max_results > max_results:
                                     max_pages -= 1
                         page_range += list(range(2, max_pages + 1))
                         # Return the link that we need
@@ -93,16 +98,18 @@ class Novelty:
                                             params={'s': term, 'post_type': 'seriesplan'}) as r:
                     if r.status == 200:
                         soup = BeautifulSoup(await r.text(), 'lxml')
-                        search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if
-                                   x is not None][0:max_results]
+                        search += [x.get('href')
+                                   for x in soup.find_all(
+                                      'a', class_='w-blog-entry-link')
+                                   if x is not None][0: max_results]
                     else:
                         raise aiohttp.ClientResponseError(r.status)
             if counter % interval == 0:
                 await asyncio.sleep(sleep_time)
         return list(set(search))
 
-    async def search(self, term: str, max_results: int = 1, as_dict: bool = False, sleep_time: int = 7,
-                     interval: int = 4):
+    async def search(self, term: str, max_results: int=1, as_dict: bool=False, sleep_time: int=7,
+                     interval: int=4):
         """
         This function parses information from __search returns and then return it as a object in a list/dict.
 
@@ -112,12 +119,12 @@ class Novelty:
         :param max_results: Maximum results returned (if set to 0, will return all).
         :param as_dict: if as_dict is true, it will return as a dict with the Title as a key else, it returns as a list
         """
-        # Uses the other method in the class to search the search page for the actual page that we want
-        # Uses the BASEURL and also builds link for the page we want using the term given
+        # Type Checking
         assert isinstance(term, str)
         assert isinstance(max_results, (float, int))
         assert isinstance(as_dict, bool)
         assert max_results >= 0
+        #Set Max Results to Unlimited if 0
         if max_results == 0:
             max_results = -1
         results = []
@@ -125,8 +132,13 @@ class Novelty:
         counter = 0
         if len(search) >= 4:
             print('Will take at least',
-                  int(str(float(len(search) / interval)).rsplit('.', maxsplit=1)[0]) * sleep_time,
-                  'to parse. sleeps', sleep_time, 'seconds every', interval, 'searches')
+                  int(str(float(len(search) / interval)).rsplit('.',
+                                                                maxsplit=1)[0]) * sleep_time,
+                  'to parse. sleeps',
+                  sleep_time,
+                  'seconds every',
+                  interval,
+                  'searches')
 
         for url in search:
             counter += 1
@@ -135,19 +147,22 @@ class Novelty:
                 if r.status == 200:
                     # The information to parse
                     parse_info = BeautifulSoup(await r.text(), 'lxml')
-                    # Make sure Artist doesn't give NoneType Error if it cannot be found.
-                    artists = parse_info.find('a', class_='genre', id='artiststag')
+                    # Error Prevention
+                    artists = parse_info.find(
+                        'a', class_='genre', id='artiststag')
                     if artists is not None:
                         artists = artists.string
-                    # Make Sure English Publisher doesn't give NoneType Error if it cannot be found.
-                    english_publisher = parse_info.find('a', class_='genre', id='myepub')
+                    english_publisher = parse_info.find(
+                        'a', class_='genre', id='myepub')
                     if english_publisher is not None:
                         try:
                             english_publisher = english_publisher.children.string
                         except AttributeError:
-                            english_publisher = ' '.join(str(x) for x in list(english_publisher))
-                    # Make Sure Publisher doesn't give NoneType Error if it cannot be found.
-                    publisher = parse_info.find('a', class_='genre', id='myopub')
+                            english_publisher = ' '.join(
+                                str(x) for x in list(english_publisher))
+                    # cannot be found.
+                    publisher = parse_info.find(
+                        'a', class_='genre', id='myopub')
                     if publisher is not None:
                         publisher = publisher.string
                     licensed = parse_info.find('div', id='showlicensed').string
@@ -156,7 +171,8 @@ class Novelty:
                     year = parse_info.find('div', id='edityear').string
                     if year is not None:
                         year = year.strip()
-                    novel_status = parse_info.find('div', id='editstatus').string
+                    novel_status = parse_info.find(
+                        'div', id='editstatus').string
                     if novel_status is not None:
                         novel_status = novel_status.strip()
                     _type = parse_info.find('a', class_='genre type')
@@ -165,7 +181,7 @@ class Novelty:
                     rating = parse_info.find(class_='uvotes')
                     if rating is not None:
                         rating = rating.string
-                    # Create the Novel Data Type
+                    # Creat Novel Object and Append to list
                     results.append(Novel(title=parse_info.find('h4', class_='seriestitle new').string,
                                          cover=None if parse_info.find('img').get(
                                              'src') == 'http://www.novelupdates.com/img/noimagefound.jpg' else
@@ -204,6 +220,7 @@ class Novelty:
                     # Raise an error with the response status
                     raise aiohttp.ClientResponseError(r.status)
         if as_dict:
+            # Make Results a dict
             old_results = results
             results = {}
             for novel in old_results:
