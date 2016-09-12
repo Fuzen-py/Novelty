@@ -1,9 +1,11 @@
 #!/bin/env python3
 """Novel Updates Data Fetching"""
 import asyncio
-from bs4 import BeautifulSoup
-import aiohttp
 from sys import argv
+
+import aiohttp
+from bs4 import BeautifulSoup
+
 
 # Todo: Novel rate
 # Todo: Option to fetch chapter links
@@ -100,6 +102,7 @@ class Novelty:
                     while (max_pages * 10) - max_results > max_results:
                         max_pages -= 1
             return list(range(2, max_pages + 1))
+        return []
 
     async def __search(self, term, max_results: int = 1, sleep_time: int = 7, interval: int = 4):
         assert isinstance(term, str)
@@ -129,7 +132,7 @@ class Novelty:
         return search
 
     async def search(self, term: str, max_results: int = 1, as_dict: bool = False, sleep_time: int = 7,
-                     interval: int = 4):
+                     interval: int = 4, fetch_chapters = False):
         """
         This function parses information from __search returns and then return it as a object in a list/dict.
 
@@ -247,7 +250,8 @@ class Novelty:
             old_results = results
             results = {}
             for novel in old_results:
-                results[novel.title] = novel
+                # novel.__dict__.pop(novel.title)
+                results[novel.title] = novel.__dict__
         return results
 
     @staticmethod
@@ -284,6 +288,7 @@ class Novelty:
 
 
 def main():
+    """For command line execution"""
     search = ' '.join(argv[1:]).strip()
     print('Searching for', search, '......')
     n = Novelty()
@@ -292,7 +297,6 @@ def main():
         print((loop.run_until_complete(n.search(search)))[0].format)
     except IndentationError:
         print('Failed to find results for', search)
-
 
 if __name__ == '__main__':
     main()
