@@ -137,4 +137,4 @@ fabric.properties
 .idea/
 /Novelty/test.py
 /.venv_test/
-/Novelty/Flora.prof
+test.py
