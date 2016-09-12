@@ -5,6 +5,13 @@ from bs4 import BeautifulSoup
 import aiohttp
 from sys import argv
 
+# Todo: Novel rate
+# Todo: Option to fetch chapter links
+# Todo: Get current chapter count (None Translated & Translated)
+# Todo: Release Frequency
+# Todo: Get Reading List Stats
+# Todo: Caching?
+
 
 class Novel:
     """Novel Object"""
@@ -42,74 +49,87 @@ class Novelty:
 
     def __init__(self, user_agent=None, session=None):
         # Set default user-agent
-        self.headers = user_agent or {"User-Agent": "RSS Reader"}
+        self.headers = user_agent or {"User-Agent": "Novelty"}
         self.loop = asyncio.get_event_loop()
         # Give the user the option of using their own client session
         self.session = session or aiohttp.ClientSession(headers=self.headers,
                                                         loop=self.loop)
         self.__cache__ = {}
 
+    # noinspection PyBroadException
     def __del__(self):
         self.session.close()
         if not self.loop.is_closed():
-            self.loop.close()
+            pending = asyncio.Task.all_tasks()
+            gathered = asyncio.gather(*pending)
+            try:
+                gathered.cancel()
+                self.loop.run_until_complete(gathered)
+                gathered.exception()
+            except:
+                pass
+            finally:
+                self.loop.close()
 
-    async def __search(self, term: str, max_results: int=1, sleep_time: int=7, interval: int=4):
+    async def __fetch(self, term, page: int = 1):
+        assert isinstance(page, int)
+        async with self.session.get(url='{}/page/{}/'.format(self.BASEURL, page),
+                                    params={'s': term, 'post_type': 'seriesplan'}) as r:
+            if not r.status == 200:
+                return None
+            soup = BeautifulSoup(await r.text(), 'lxml')
+            return soup
+
+    @staticmethod
+    def __fetch_pages(max_results, soup):
+        if not (max_results >= 17):
+            max_pages = 0
+            pages = soup.find_all('a', class_='page-numbers')
+            if len(pages) > 0:
+                possible_pages = []
+                for x in pages:
+                    if x.span is not None and x.span.string is not None and x.span.string.isdigit():
+                        possible_pages.append(int(x.span.string))
+                if not len(possible_pages) > 0:
+                    return []
+                max_pages = 1
+                for p in possible_pages:
+                    if p > max_pages:
+                        max_pages = p
+                if max_results != -1:
+                    while (max_pages * 10) - max_results > max_results:
+                        max_pages -= 1
+            return list(range(2, max_pages + 1))
+
+    async def __search(self, term, max_results: int = 1, sleep_time: int = 7, interval: int = 4):
+        assert isinstance(term, str)
+        assert isinstance(max_results, int)
+        assert isinstance(sleep_time, (int, float))
+        assert isinstance(interval, int)
+        if interval == 0:
+            interval = 1
+        if interval < 0:
+            interval = abs(interval)
         search = []
-        page_range = []
-        async with self.session.get(self.BASEURL,
-                                    params={'s': term,
-                                            'post_type': 'seriesplan'}) as r:
-            # If the response is 200 OK
-            if r.status == 200:
-                soup = BeautifulSoup(await r.text(), 'lxml')
-                search += [x.get('href')
-                           for x in soup.find_all(
-                              'a', class_='w-blog-entry-link')
-                           if x is not None][0: max_results]
-                if not (max_results >= 17):
-                    pages = soup.find_all('a', class_='page-numbers')
-                    if len(pages) > 0:
-                        possible_pages = []
-                        for x in pages:
-                            if x.span is not None and x.span.string is not None and x.span.string.isdigit():
-                                possible_pages.append(int(x.span.string))
-                        if len(possible_pages) > 0:
-                            max_pages = 1
-                            for p in possible_pages:
-                                if p > max_pages:
-                                    max_pages = p
-                            if max_results != -1:
-                                while (
-                                        max_pages * 10) - max_results > max_results:
-                                    max_pages -= 1
-                        page_range += list(range(2, max_pages + 1))
-                        # Return the link that we need
-            else:
-                # Raise an error with the response status
-                raise aiohttp.ClientResponseError(r.status)
-        if len(page_range) == 0:
+        soup = await self.__fetch(term, 1)
+        if soup is None:
             return search
-        else:
-            counter = 0
-            for page in page_range:
-                counter += 1
-                async with self.session.get(url='{}/page/{}/'.format(self.BASEURL, page),
-                                            params={'s': term, 'post_type': 'seriesplan'}) as r:
-                    if r.status == 200:
-                        soup = BeautifulSoup(await r.text(), 'lxml')
-                        search += [x.get('href')
-                                   for x in soup.find_all(
-                                      'a', class_='w-blog-entry-link')
-                                   if x is not None][0: max_results]
-                    else:
-                        raise aiohttp.ClientResponseError(r.status)
+        search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if x is not None][
+                  0: max_results]
+        counter = 0
+        for page in self.__fetch_pages(max_results, soup):
+            counter += 1
+            soup = await self.__fetch(term, page)
+            if soup is None:
+                break
+            search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if x is not None][
+                      0: max_results]
             if counter % interval == 0:
                 await asyncio.sleep(sleep_time)
-        return list(set(search))
+        return search
 
-    async def search(self, term: str, max_results: int=1, as_dict: bool=False, sleep_time: int=7,
-                     interval: int=4):
+    async def search(self, term: str, max_results: int = 1, as_dict: bool = False, sleep_time: int = 7,
+                     interval: int = 4):
         """
         This function parses information from __search returns and then return it as a object in a list/dict.
 
@@ -124,7 +144,7 @@ class Novelty:
         assert isinstance(max_results, (float, int))
         assert isinstance(as_dict, bool)
         assert max_results >= 0
-        #Set Max Results to Unlimited if 0
+        # Set Max Results to Unlimited if 0
         if max_results == 0:
             max_results = -1
         results = []
@@ -184,7 +204,7 @@ class Novelty:
                     language = parse_info.find('a', class_='genre lang')
                     if language is not None:
                         language = language.string
-                    # Creat Novel Object and Append to list
+                    # Create Novel Object and Append to list
                     results.append(Novel(title=parse_info.find('h4', class_='seriestitle new').string,
                                          cover=None if parse_info.find('img').get(
                                              'src') == 'http://www.novelupdates.com/img/noimagefound.jpg' else
@@ -266,12 +286,13 @@ class Novelty:
 def main():
     search = ' '.join(argv[1:]).strip()
     print('Searching for', search, '......')
-    N = Novelty()
+    n = Novelty()
     loop = asyncio.get_event_loop()
     try:
-        print((loop.run_until_complete(N.search(search)))[0].format)
+        print((loop.run_until_complete(n.search(search)))[0].format)
     except IndentationError:
         print('Failed to find results for', search)
+
 
 if __name__ == '__main__':
     main()
