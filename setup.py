@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Novelty',
-    version='1.0.3',
+    version='1.0.4',
     packages=['Novelty'],
     url='https://github.com/Fuzen-py/Novelty',
     license='MIT',
@@ -19,4 +19,9 @@ setup(
         'Topic :: Software Development :: Libraries'
     ],
     keywords="NovelUpdates asyncio aiohttp scraping Novelty",
-    install_requires=['aiohttp', 'bs4', 'lxml'])
+    install_requires=['aiohttp', 'bs4', 'lxml'],
+    entry_points={
+        'console_scripts': [
+            'novelty=Novelty:main'
+        ]
+    })

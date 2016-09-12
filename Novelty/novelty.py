@@ -100,6 +100,7 @@ class Novelty:
                     while (max_pages * 10) - max_results > max_results:
                         max_pages -= 1
             return list(range(2, max_pages + 1))
+        return []
 
     async def __search(self, term, max_results: int = 1, sleep_time: int = 7, interval: int = 4):
         assert isinstance(term, str)
@@ -129,7 +130,7 @@ class Novelty:
         return search
 
     async def search(self, term: str, max_results: int = 1, as_dict: bool = False, sleep_time: int = 7,
-                     interval: int = 4):
+                     interval: int = 4, fetch_chapters = False):
         """
         This function parses information from __search returns and then return it as a object in a list/dict.
 
@@ -247,7 +248,8 @@ class Novelty:
             old_results = results
             results = {}
             for novel in old_results:
-                results[novel.title] = novel
+                # novel.__dict__.pop(novel.title)
+                results[novel.title] = novel.__dict__
         return results
 
     @staticmethod
