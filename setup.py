@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Novelty',
-    version='1.0.2',
+    version='1.0.3',
     packages=['Novelty'],
     url='https://github.com/Fuzen-py/Novelty',
     license='MIT',
