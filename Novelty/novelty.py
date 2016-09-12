@@ -1,9 +1,11 @@
 #!/bin/env python3
 """Novel Updates Data Fetching"""
 import asyncio
-from bs4 import BeautifulSoup
-import aiohttp
 from sys import argv
+
+import aiohttp
+from bs4 import BeautifulSoup
+
 
 # Todo: Novel rate
 # Todo: Option to fetch chapter links
@@ -286,6 +288,7 @@ class Novelty:
 
 
 def main():
+    """For command line execution"""
     search = ' '.join(argv[1:]).strip()
     print('Searching for', search, '......')
     n = Novelty()
@@ -294,7 +297,6 @@ def main():
         print((loop.run_until_complete(n.search(search)))[0].format)
     except IndentationError:
         print('Failed to find results for', search)
-
 
 if __name__ == '__main__':
     main()
