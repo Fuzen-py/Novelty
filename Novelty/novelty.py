@@ -181,6 +181,9 @@ class Novelty:
                     rating = parse_info.find(class_='uvotes')
                     if rating is not None:
                         rating = rating.string
+                    language = parse_info.find('a', class_='genre lang')
+                    if language is not None:
+                        language = language.string
                     # Creat Novel Object and Append to list
                     results.append(Novel(title=parse_info.find('h4', class_='seriestitle new').string,
                                          cover=None if parse_info.find('img').get(
@@ -193,7 +196,7 @@ class Novelty:
                                          tags=[x.string.strip() for x in
                                                list(parse_info.find_all('div', id='showtags')[0].children) if
                                                (x.string is not None) and len(x.string.strip()) > 0],
-                                         language=parse_info.find('a', class_='genre lang').string,
+                                         language=language,
                                          authors=list(set(
                                              [x.string.strip() for x in parse_info.find_all('a', id='authtag') if
                                               x.string is not None])),
