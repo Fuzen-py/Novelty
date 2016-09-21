@@ -5,7 +5,7 @@ from sys import argv
 
 import aiohttp
 from bs4 import BeautifulSoup
-
+from math import floor
 
 # Todo: Novel rate
 # Todo: Option to fetch chapter links
@@ -88,20 +88,8 @@ class Novelty:
             max_pages = 0
             pages = soup.find_all('a', class_='page-numbers')
             if len(pages) > 0:
-                possible_pages = []
-                for x in pages:
-                    if x.span is not None and x.span.string is not None and x.span.string.isdigit():
-                        possible_pages.append(int(x.span.string))
-                if not len(possible_pages) > 0:
-                    return []
-                max_pages = 1
-                for p in possible_pages:
-                    if p > max_pages:
-                        max_pages = p
-                if max_results != -1:
-                    while (max_pages * 10) - max_results > max_results:
-                        max_pages -= 1
-            return list(range(2, max_pages + 1))
+                possible_pages = [int(x.span.string) for x in pages if x.span is not None and x.span.string is not None and x.span.string.isdigit()]
+                return possible_pages
         return []
 
     async def __search(self, term, max_results: int = 1, sleep_time: int = 7, interval: int = 4):
@@ -113,6 +101,7 @@ class Novelty:
             interval = 1
         if interval < 0:
             interval = abs(interval)
+        interval = floor(interval)
         search = []
         soup = await self.__fetch(term, 1)
         if soup is None:
@@ -125,10 +114,13 @@ class Novelty:
             soup = await self.__fetch(term, page)
             if soup is None:
                 break
-            search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if x is not None][
-                      0: max_results]
+            search += [x.get('href') for x in soup.find_all('a', class_='w-blog-entry-link') if x is not None]
+            if len(search) >= max_results:
+              search = search[:max_results]
+              break
             if counter % interval == 0:
                 await asyncio.sleep(sleep_time)
+            
         return search
 
     async def search(self, term: str, max_results: int = 1, as_dict: bool = False, sleep_time: int = 7,
@@ -152,16 +144,12 @@ class Novelty:
             max_results = -1
         results = []
         search = await self.__search(term=term, max_results=max_results, sleep_time=sleep_time, interval=interval)
+        print(len(search), 'Results found')
         counter = 0
         if len(search) >= 4:
             print('Will take at least',
-                  int(str(float(len(search) / interval)).rsplit('.',
-                                                                maxsplit=1)[0]) * sleep_time,
-                  'to parse. sleeps',
-                  sleep_time,
-                  'seconds every',
-                  interval,
-                  'searches')
+                  floor((len(search) / interval)) * sleep_time, 'to parse. sleeps', sleep_time,
+                  'seconds every', interval, 'searches')
 
         for url in search:
             counter += 1
